@@ -92,7 +92,7 @@ working functionality. Read it before writing code.
 
 ## Current state (checkpoint)
 
-- Backend: 4 suites / 23 tests passing. Frontend: 3 suites / 13 tests passing. Build passes. Lint is clean
+- Backend: 4 suites / 23 tests passing. Frontend: 4 suites / 15 tests passing. Build passes. Lint is clean
   in both workspaces.
 - A live browser walkthrough of the customer flow (home → listing → restaurant → cart → coupon
   `SPECIAL80` → checkout → COD order → order success → history) and the admin dashboard/coupon flows has

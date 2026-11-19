@@ -44,9 +44,11 @@ if (!parsed.success) {
 
 const raw = parsed.data;
 const isProduction = raw.NODE_ENV === 'production';
-const clientOrigins = [raw.CLIENT_URL, ...raw.CLIENT_URLS.split(',')]
+const devOrigins = isProduction ? [] : ['http://localhost:5173', 'http://127.0.0.1:5173'];
+const configuredOrigins = [raw.CLIENT_URL, ...raw.CLIENT_URLS.split(',')]
   .map((origin) => origin.trim())
   .filter(Boolean);
+const clientOrigins = [...new Set([...configuredOrigins, ...devOrigins])];
 
 if (isProduction && raw.PAYMENTS_DEV_MODE) {
   throw new Error('PAYMENTS_DEV_MODE cannot be enabled in production');
@@ -57,7 +59,9 @@ if (isProduction && !raw.COOKIE_SECURE) {
 }
 
 if (isProduction && !raw.ADMIN_PASSWORD) {
-  console.warn('ADMIN_PASSWORD is not set. Production seeding will refuse to create an administrator.');
+  console.warn(
+    'ADMIN_PASSWORD is not set. Production seeding will refuse to create an administrator.'
+  );
 }
 
 export const env = {

@@ -9,7 +9,7 @@ export function TopDishCard({ item }) {
 
   return (
     <Link
-      to={`/restaurant/${restaurant?.slug || ''}`}
+      to={`/restaurants/${restaurant?.slug || ''}`}
       className="group flex h-full flex-col overflow-hidden rounded-3xl border border-black/[0.06] bg-white p-3 shadow-card transition duration-300 hover:-translate-y-1 hover:shadow-lift"
     >
       <div className="relative aspect-[5/4] overflow-hidden rounded-2xl bg-black/5">

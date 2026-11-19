@@ -8,7 +8,7 @@ import { cn } from '../../utils/cn.js';
 export function RestaurantCard({ restaurant, className }) {
   return (
     <Link
-      to={`/restaurant/${restaurant.slug}`}
+      to={`/restaurants/${restaurant.slug}`}
       className={cn(
         'group block overflow-hidden rounded-3xl border border-black/[0.06] bg-white shadow-card transition duration-300 hover:-translate-y-1 hover:shadow-lift',
         className

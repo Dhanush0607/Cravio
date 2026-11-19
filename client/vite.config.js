@@ -13,14 +13,17 @@ export default defineConfig({
     },
   },
   server: {
+    // Bind IPv4 explicitly: on some Windows setups Vite's default `localhost`
+    // resolves to ::1, which is unreachable from browsers/proxies here.
+    host: '127.0.0.1',
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'http://127.0.0.1:5000',
         changeOrigin: true,
       },
       '/uploads': {
-        target: 'http://localhost:5000',
+        target: 'http://127.0.0.1:5000',
         changeOrigin: true,
       },
     },

@@ -290,7 +290,7 @@ Last verified run in this repository:
 | `npm run build -w client`         | Passed — 1,726 modules transformed, production bundle emitted |
 | `npm run lint`                    | Passed — 0 errors, 0 warnings in both workspaces    |
 | `npm run test -w server`          | Passed — 4 files, 23 tests (Vitest 5 + Supertest)   |
-| `npm run test -w client`          | Passed — 3 files, 13 tests (Vitest 5 + RTL)         |
+| `npm run test -w client`          | Passed — 4 files, 15 tests (Vitest 5 + RTL)         |
 | `npm audit --omit=dev`            | 0 vulnerabilities in runtime dependencies           |
 | Manual browser walkthrough        | Home, listing, detail, cart, coupon, checkout, order success, history, admin dashboard, admin coupons, login/logout, mobile nav, protected redirects — no console errors |
 
