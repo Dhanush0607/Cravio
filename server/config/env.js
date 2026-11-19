@@ -28,6 +28,9 @@ const envSchema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().optional().default(''),
   CLOUDINARY_API_KEY: z.string().optional().default(''),
   CLOUDINARY_API_SECRET: z.string().optional().default(''),
+  AI_API_KEY: z.string().optional().default(''),
+  AI_BASE_URL: z.string().url().optional().default('https://api.openai.com/v1'),
+  AI_MODEL: z.string().optional().default('gpt-4o-mini'),
   ADMIN_NAME: z.string().optional().default('Cravio Administrator'),
   ADMIN_EMAIL: z.string().email().optional().default('admin@cravio.dev'),
   ADMIN_PASSWORD: z.string().optional().default(''),
@@ -74,4 +77,5 @@ export const env = {
     raw.CLOUDINARY_CLOUD_NAME && raw.CLOUDINARY_API_KEY && raw.CLOUDINARY_API_SECRET
   ),
   razorpayEnabled: Boolean(raw.RAZORPAY_KEY_ID && raw.RAZORPAY_KEY_SECRET),
+  assistantLlmEnabled: Boolean(raw.AI_API_KEY),
 };

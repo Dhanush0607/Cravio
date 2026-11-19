@@ -22,3 +22,9 @@ export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 25,
 });
+
+export const assistantLimiter = rateLimit({
+  ...standardOptions,
+  windowMs: 15 * 60 * 1000,
+  limit: 60,
+});

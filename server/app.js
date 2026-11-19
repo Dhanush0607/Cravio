@@ -18,6 +18,7 @@ import couponRoutes from './routes/couponRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import assistantRoutes from './routes/assistantRoutes.js';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -72,6 +73,7 @@ app.use('/api/menu', menuRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/assistant', assistantRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.use(notFoundHandler);

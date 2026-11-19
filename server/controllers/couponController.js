@@ -1,21 +1,9 @@
-import { Coupon } from '../models/Coupon.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
-import { validateCoupon } from '../services/couponService.js';
+import { listRedeemableCoupons, validateCoupon } from '../services/couponService.js';
 
 export const featuredCoupons = asyncHandler(async (_req, res) => {
-  const now = new Date();
-  const coupons = await Coupon.find({
-    isActive: true,
-    expiryDate: { $gt: now },
-    $or: [{ usageLimit: null }, { $expr: { $lt: ['$usageCount', '$usageLimit'] } }],
-  })
-    .select(
-      'code description discountType discountValue minimumOrderAmount maximumDiscount expiryDate'
-    )
-    .sort({ discountValue: -1 })
-    .limit(4)
-    .lean();
+  const coupons = await listRedeemableCoupons(4);
 
   res.json({ success: true, data: { coupons } });
 });

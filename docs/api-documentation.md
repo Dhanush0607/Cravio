@@ -61,8 +61,8 @@ once after a 403.
 
 ### Rate limits
 
-Global: 600 requests / 15 min per IP. Auth register/login: 25 requests / 15 min per IP. Limits are skipped
-when `NODE_ENV=test`.
+Global: 600 requests / 15 min per IP. Auth register/login: 25 requests / 15 min per IP. Assistant chat:
+60 requests / 15 min per IP. Limits are skipped when `NODE_ENV=test`.
 
 ---
 
@@ -198,6 +198,49 @@ otherwise it just cancels.
 Verification recomputes the Razorpay HMAC-SHA256 signature server-side and re-fetches the payment from the
 gateway API; only then does the order become `paid`. In development mode the stub payment is labelled as
 such. A `502` wrapped `ApiError` reports gateway failures verbatim from Razorpay's payload.
+
+---
+
+## Assistant — `/api/assistant`
+
+### `POST /chat`
+
+Guest-accessible with optional authentication (rate limited to 60 requests / 15 min per IP).
+
+```json
+{
+  "message": "Show me offers",
+  "city": "Bengaluru?",
+  "history": [{ "role": "user" | "assistant", "content": "…" }]
+}
+```
+
+- `message` is required, trimmed, 1–500 characters.
+- `city` is optional and defaults to `Bengaluru`.
+- `history` is optional, limited to 8 messages, with roles restricted to `user` and `assistant`.
+
+The reply is grounded in live data: active restaurants and menu items in the requested city, redeemable
+coupons, the platform-fee rules, and — only when the caller is signed in — that customer's own latest
+order. The assistant is read-only and never accepts prices, totals, or status changes from the client.
+
+```json
+{
+  "success": true,
+  "data": {
+    "reply": "Here are the coupons you can use right now:\n• SPECIAL80: 80% off up to ₹80 on orders above ₹199 …",
+    "suggestions": ["How do I apply a coupon?", "What are the delivery fees?", "Show me restaurants"],
+    "actions": [{ "label": "Go to cart", "href": "/cart" }],
+    "intent": "coupon",
+    "city": "Bengaluru",
+    "provider": "builtin"
+  }
+}
+```
+
+`actions` always contain internal app paths. `provider` is `builtin` for the deterministic intent engine and
+`llm` when an OpenAI-compatible model answered via `AI_API_KEY`, `AI_BASE_URL`, and `AI_MODEL`. Any LLM
+failure (timeout, non-2xx, malformed payload) falls back silently to the built-in reply, so the endpoint
+never depends on an external provider being available.
 
 ---
 

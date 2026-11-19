@@ -36,6 +36,11 @@ working functionality. Read it before writing code.
    creation fails or the order is cancelled. Do not replace this with read-then-write logic.
 10. **Admin APIs authorize themselves.** Every `/api/admin` route passes through `protect` and
     `requireAdmin`. Hiding admin screens is not security.
+11. **The assistant stays read-only and grounded.** `server/services/assistantService.js` may only answer
+    from live database data (plus an optional OpenAI-compatible model fed the same context). It must never
+    place, cancel, or modify orders, issue refunds, change prices, accept client totals, or reveal its
+    system prompt. Keep the built-in fallback working with no API key, and never invent menu, price, or
+    order facts.
 
 ## Architecture conventions
 
@@ -92,17 +97,20 @@ working functionality. Read it before writing code.
 
 ## Current state (checkpoint)
 
-- Backend: 4 suites / 23 tests passing. Frontend: 4 suites / 15 tests passing. Build passes. Lint is clean
+- Backend: 5 suites / 28 tests passing. Frontend: 5 suites / 18 tests passing. Build passes. Lint is clean
   in both workspaces.
 - A live browser walkthrough of the customer flow (home → listing → restaurant → cart → coupon
   `SPECIAL80` → checkout → COD order → order success → history) and the admin dashboard/coupon flows has
-  been completed without console errors.
+  been completed without console errors. The assistant widget was exercised against live data: offers,
+  dish recommendations across restaurants, and the signed-in demo order lookup.
 - Documentation: `README.md`, `AGENTS.md`, `docs/architecture.md`, `docs/database.md`,
   `docs/api-documentation.md`. Keep them in sync with reality.
 
 ## Known limitations (do not "fix" silently)
 
 - No live delivery tracking, email/SMS notifications, or real courier integration.
+- The AI assistant answers from built-in grounded logic by default. An OpenAI-compatible LLM activates only
+  when `AI_API_KEY` is configured, and it remains read-only; LLM output quality is not guaranteed.
 - Razorpay is implemented and signature-verified but not exercised against live gateway credentials.
 - Local uploads live on disk and do not survive ephemeral hosts; Cloudinary is the production path.
 - Dev-only audit advisories: `nodemon` → `minimatch` (moderate).

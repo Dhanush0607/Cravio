@@ -1,6 +1,8 @@
-const PLATFORM_FEE_RATE = 0.02;
-const MIN_PLATFORM_FEE = 5;
-const MAX_PLATFORM_FEE = 25;
+export const PLATFORM_FEE = {
+  rate: 0.02,
+  min: 5,
+  max: 25,
+};
 
 export function roundCurrency(value) {
   return Math.round(Number(value) * 100) / 100;
@@ -10,8 +12,8 @@ export function calculatePlatformFee(subtotal) {
   if (!Number.isFinite(subtotal) || subtotal <= 0) {
     return 0;
   }
-  const fee = Math.round(subtotal * PLATFORM_FEE_RATE);
-  return Math.max(MIN_PLATFORM_FEE, Math.min(MAX_PLATFORM_FEE, fee));
+  const fee = Math.round(subtotal * PLATFORM_FEE.rate);
+  return Math.max(PLATFORM_FEE.min, Math.min(PLATFORM_FEE.max, fee));
 }
 
 export function calculateQuote({ subtotal, deliveryFee = 0, discount = 0 }) {

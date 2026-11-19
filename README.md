@@ -47,6 +47,10 @@ separate dashboard for restaurants, menus, orders, customers, coupons, and platf
 - Order success, order history with status filters, and an order detail page with a status timeline,
   cancellation for eligible orders, and payment state.
 - Profile management, address book (add, edit, delete, set default), password change, and account summary.
+- Floating **Cravio Assistant** chat widget that answers questions about dishes, offers, fees, payment
+  modes, and the signed-in customer's own latest order using live database data. It is read-only: it never
+  places, cancels, or changes an order, and it upgrades to an OpenAI-compatible LLM automatically when
+  `AI_API_KEY` is configured.
 - Responsive navigation with a location selector, cart badge, account menu, and mobile drawer.
 
 ### Administration
@@ -97,7 +101,7 @@ cravio/
 ├── client/                     # React + Vite frontend
 │   ├── public/images/          # Local food and restaurant imagery
 │   ├── src/
-│   │   ├── components/         # common, layout, home, restaurant, cart, admin
+│   │   ├── components/         # common, layout, home, restaurant, cart, assistant, admin
 │   │   ├── context/            # Auth, Cart, Toast, Location providers
 │   │   ├── hooks/              # useApi, useDebounce, useClickOutside
 │   │   ├── pages/              # Home, Restaurants, Search, Cart, Checkout, Orders, Profile, Auth, Admin…
@@ -115,7 +119,7 @@ cravio/
 │   ├── middleware/             # auth, CSRF, validation, rate limits, sanitisation, errors
 │   ├── models/                 # User, Restaurant, MenuItem, Order, Coupon, Payment
 │   ├── routes/                 # /api/* routers
-│   ├── services/               # pricing, coupons, order status, payments, uploads
+│   ├── services/               # pricing, coupons, order status, payments, uploads, assistant
 │   ├── tests/                  # Vitest + Supertest API suites
 │   ├── validators/             # Zod request schemas
 │   ├── seed.js                 # Idempotent development seed
@@ -220,6 +224,9 @@ NODE_ENV=production npm run start -w server
 | `CLOUDINARY_CLOUD_NAME`   | No       | Enables Cloudinary uploads when all three values are set              |
 | `CLOUDINARY_API_KEY`      | No       |                                                                       |
 | `CLOUDINARY_API_SECRET`   | No       |                                                                       |
+| `AI_API_KEY`              | No       | Enables LLM answers in the assistant when set; the built-in grounded engine is used otherwise |
+| `AI_BASE_URL`             | No       | OpenAI-compatible base URL; defaults to `https://api.openai.com/v1`   |
+| `AI_MODEL`                | No       | Chat model name; defaults to `gpt-4o-mini`                            |
 | `ADMIN_NAME`              | No       | Seed administrator display name                                       |
 | `ADMIN_EMAIL`             | No       | Seed administrator email                                             |
 | `ADMIN_PASSWORD`          | Seed     | Required for production seeding; never commit a real value            |
@@ -289,8 +296,8 @@ Last verified run in this repository:
 | --------------------------------- | --------------------------------------------------- |
 | `npm run build -w client`         | Passed — 1,726 modules transformed, production bundle emitted |
 | `npm run lint`                    | Passed — 0 errors, 0 warnings in both workspaces    |
-| `npm run test -w server`          | Passed — 4 files, 23 tests (Vitest 5 + Supertest)   |
-| `npm run test -w client`          | Passed — 4 files, 15 tests (Vitest 5 + RTL)         |
+| `npm run test -w server`          | Passed — 5 files, 28 tests (Vitest 5 + Supertest)   |
+| `npm run test -w client`          | Passed — 5 files, 18 tests (Vitest 5 + RTL)         |
 | `npm audit --omit=dev`            | 0 vulnerabilities in runtime dependencies           |
 | Manual browser walkthrough        | Home, listing, detail, cart, coupon, checkout, order success, history, admin dashboard, admin coupons, login/logout, mobile nav, protected redirects — no console errors |
 
@@ -298,11 +305,13 @@ Backend suites cover: registration and role escalation, duplicate email, login f
 admin-only routes, CSRF enforcement, disabled accounts, coupon rules including `SPECIAL80`, authoritative
 totals, unavailable dishes, cross-restaurant dishes, minimum order, idempotent replays, coupon reuse,
 ownership scoping, status transitions, COD settlement, online payment delivery guard, admin restaurant and
-menu CRUD, coupon validation, customer activity, and upload rejection.
+menu CRUD, coupon validation, customer activity, upload rejection, and assistant grounding (live coupons,
+dish search by city, per-customer order privacy, guest handling, and input validation).
 
 Frontend suites cover: currency, date, and delivery formatting, cart pricing helpers, cart provider
-behaviour (restaurant conflicts, quantity limits, persistence), and authentication forms through React
-Hook Form + Zod + the API boundary.
+behaviour (restaurant conflicts, quantity limits, persistence), authentication forms through React Hook
+Form + Zod + the API boundary, and the chat widget (open/Escape, send with the active city, retry on
+failure).
 
 Reproduce everything with:
 
@@ -421,6 +430,10 @@ npm run test
 - **Email, SMS, and push notifications are not implemented.** Order updates are visible in-app only.
 - **Uploads on local disk do not survive ephemeral hosts.** Use Cloudinary or a persistent volume in
   production.
+- **The assistant is read-only and grounded.** Without `AI_API_KEY` it answers through a deterministic intent
+  engine over live restaurant, menu, coupon, fee, and order data. With a key it uses an OpenAI-compatible
+  model, but it still cannot place, cancel, or modify orders, issue refunds, or invent prices. LLM replies
+  are not guaranteed to be perfect; support remains the fallback for disputes.
 - **Two moderate `npm audit` advisories remain in dev-only tooling** (`nodemon` → `minimatch`). Runtime
   dependencies audit clean (`npm audit --omit=dev` → 0 vulnerabilities).
 - **Automated browser E2E is not part of the suite.** Flows were verified manually in a real browser, and

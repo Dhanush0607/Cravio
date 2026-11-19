@@ -60,6 +60,21 @@ export async function validateCoupon({ code, userId, subtotal }) {
   };
 }
 
+export async function listRedeemableCoupons(limit = 4) {
+  const now = new Date();
+  return Coupon.find({
+    isActive: true,
+    expiryDate: { $gt: now },
+    $or: [{ usageLimit: null }, { $expr: { $lt: ['$usageCount', '$usageLimit'] } }],
+  })
+    .select(
+      'code description discountType discountValue minimumOrderAmount maximumDiscount expiryDate'
+    )
+    .sort({ discountValue: -1 })
+    .limit(limit)
+    .lean();
+}
+
 export async function reserveCoupon(coupon) {
   if (!coupon) {
     return null;

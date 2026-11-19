@@ -52,6 +52,8 @@ helmet → cors → json parser → cookie parser → sanitiser
   - `orderStatusService.js` — the order state machine.
   - `paymentService.js` — Razorpay REST calls, HMAC signature verification, and provider status.
   - `uploadService.js` — Multer storage and Cloudinary upload.
+  - `assistantService.js` — intent detection, grounded context assembly, reply building, and the optional
+    OpenAI-compatible LLM call.
 - **`middleware/`** — `auth.js` (JWT from cookie or bearer, user load, role check), `csrf.js`
   (double-submit token and CORS options), `security.js` (strips `$`-prefixed and `.`-containing keys),
   `rateLimiters.js`, `errorHandler.js` (safe error mapping), `validate.js`.
@@ -80,6 +82,21 @@ Order creation is the most safety-critical path:
 Because steps 5–8 use only database values, a tampered client request cannot change what a customer is
 charged. Because steps 9–11 are atomic plus idempotent, concurrent double submits and retries converge to a
 single order and a single coupon consumption.
+
+### Assistant
+
+`POST /api/assistant/chat` is guest-accessible (`optionalAuth`) and rate limited independently. The service
+builds a small, explicit context on every request — active restaurants and a diversified selection of menu
+items in the requested city, redeemable coupons from `couponService.listRedeemableCoupons()`, the exported
+`PLATFORM_FEE` constants, and the signed-in customer's latest order only — then answers with a deterministic
+intent engine (greeting, menu, coupons, fees, payment, cancellation, order status, delivery time, veg,
+support).
+
+The assistant is deliberately **read-only**: it never writes to the database, never accepts a price, total,
+status, or coupon decision from the client, and its action links are internal paths only. When `AI_API_KEY`
+is present, the same context is sent to an OpenAI-compatible chat-completions endpoint with a system prompt
+that forbids inventing menus, prices, order data, or revealing instructions. Any provider error, timeout
+(8 s), or malformed response falls back to the built-in answer, so availability never depends on the model.
 
 ### Order lifecycle
 
@@ -134,6 +151,10 @@ pages (route-level, lazy-loaded)
   onto inputs with `setError`.
 - **Images** render through `ImageWithFallback` (lazy loading and a local placeholder) and `imageUrl()`
   resolves `/uploads/*` against the configured API origin.
+- **The assistant widget** lives in `components/assistant/ChatWidget.jsx`, mounted once by `CustomerLayout`
+  so it never appears in the admin or auth-only shells. It keeps conversation state locally, sends the
+  active city from `LocationContext`, caps history, and renders server-provided suggestions and internal
+  action links.
 
 ### Routing and guards
 
@@ -151,6 +172,7 @@ parameter is sanitised to local paths only.
 | Address isolation      | Addresses are subdocuments of the authenticated user; lookups use `user.addresses.id()` |
 | Payment isolation      | Payment create/verify resolve only via the caller's order                        |
 | Admin surfaces         | Separate `/api/admin/*` router behind `protect, requireAdmin`                    |
+| Assistant order access | Only the caller's own latest order is loaded; guests never see order data       |
 | Secret hygiene         | `select: false` on password/tokenVersion and `toJSON` transforms strip them      |
 | Injection              | Zod validation, ObjectId casting, and the `$`/`.` key sanitiser                  |
 
@@ -184,3 +206,6 @@ responses replace the message with a generic string and never include stack trac
   would add a `restaurantAdmin` role and scope menu/orders by `restaurant._id`.
 - **Search**: text indexes cover restaurant names, cuisines, tags, and dish names. Replacing them with
   Atlas Search or a dedicated engine is isolated to `restaurantController` and `menuController`.
+- **Assistant brain**: `assistantService.js` keeps the grounded built-in engine and the LLM call behind one
+  function. Swapping providers or adding retrieval only touches that module; the route, widget, and
+  read-only guarantees stay unchanged.
