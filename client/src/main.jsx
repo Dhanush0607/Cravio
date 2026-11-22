@@ -9,19 +9,22 @@ import { ToastProvider } from './context/ToastContext.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { CartProvider } from './context/CartContext.jsx';
 import { LocationProvider } from './context/LocationContext.jsx';
+import { ThemeProvider } from './context/ThemeContext.jsx';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
       <BrowserRouter>
         <ToastProvider>
-          <AuthProvider>
-            <LocationProvider>
-              <CartProvider>
-                <App />
-              </CartProvider>
-            </LocationProvider>
-          </AuthProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <LocationProvider>
+                <CartProvider>
+                  <App />
+                </CartProvider>
+              </LocationProvider>
+            </AuthProvider>
+          </ThemeProvider>
         </ToastProvider>
       </BrowserRouter>
     </ErrorBoundary>

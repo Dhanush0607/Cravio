@@ -5,6 +5,22 @@
 @layer base {
   :root {
     color-scheme: light;
+    --color-canvas: 250 250 248;
+    --color-ink: #222222;
+    --color-ink-soft: #333333;
+    --color-ink-muted: #777777;
+    --surface: #ffffff;
+    --surface-border: rgba(0, 0, 0, 0.07);
+  }
+
+  :root.dark {
+    color-scheme: dark;
+    --color-canvas: 23 22 20;
+    --color-ink: #f4f1ec;
+    --color-ink-soft: #d4d0c9;
+    --color-ink-muted: #a49f96;
+    --surface: #24221f;
+    --surface-border: rgba(255, 255, 255, 0.1);
   }
 
   html {
@@ -43,6 +59,90 @@
 
   img {
     @apply select-none;
+  }
+}
+
+@layer base {
+  .dark body {
+    background-color: rgb(var(--color-canvas));
+    color: var(--color-ink);
+  }
+  .dark .bg-white {
+    background-color: var(--surface) !important;
+  }
+  .dark .bg-canvas {
+    background-color: rgb(var(--color-canvas));
+  }
+  .dark [class*='bg-canvas/'] {
+    background-color: rgb(var(--color-canvas) / 0.95);
+  }
+  .dark [class*='bg-white/'] {
+    background-color: rgb(36 34 31 / 0.86);
+  }
+  .dark [class*='border-black'] {
+    border-color: var(--surface-border) !important;
+  }
+  .dark [class*='bg-black/'] {
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+  .dark .text-black {
+    color: var(--color-ink);
+  }
+  .dark .bg-brand-50 {
+    background-color: rgba(255, 107, 53, 0.14);
+  }
+  .dark .bg-brand-100 {
+    background-color: rgba(255, 107, 53, 0.2);
+  }
+  .dark .bg-brand-100\/60,
+  .dark .bg-brand-50\/40,
+  .dark .bg-brand-50\/50,
+  .dark .bg-brand-50\/60 {
+    background-color: rgba(255, 107, 53, 0.14);
+  }
+  .dark .bg-amber-50,
+  .dark .bg-amber-100,
+  .dark .bg-amber-100\/50,
+  .dark .bg-green-50,
+  .dark .bg-green-50\/70,
+  .dark .bg-green-100,
+  .dark .bg-blue-50,
+  .dark .bg-violet-50,
+  .dark .bg-slate-100,
+  .dark .bg-red-50 {
+    background-color: #302d29;
+  }
+  .dark .bg-\[\#f6f5f2\],
+  .dark .bg-\[\#f6f5f2\]\/95 {
+    background-color: var(--surface);
+  }
+  .dark .text-brand-700 {
+    color: #ff9a74;
+  }
+  .dark .text-brand-600 {
+    color: #ff8555;
+  }
+  .dark .input-base {
+    background-color: var(--surface);
+    color: var(--color-ink);
+    border-color: var(--surface-border);
+  }
+  .dark .card {
+    background-color: var(--surface);
+    border-color: var(--surface-border);
+  }
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: #aaa49b;
+    opacity: 1;
+  }
+  .dark select {
+    color: var(--color-ink);
+    color-scheme: dark;
+  }
+  .dark select option {
+    background-color: var(--surface);
+    color: var(--color-ink);
   }
 }
 

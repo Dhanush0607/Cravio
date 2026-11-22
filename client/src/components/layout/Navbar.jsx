@@ -8,15 +8,18 @@ import {
   Menu,
   Package,
   Search,
+  Sun,
   ShoppingBag,
   User,
   X,
+  Moon,
 } from 'lucide-react';
 import { Logo } from '../common/Brand.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useCart } from '../../context/CartContext.jsx';
 import { useLocation } from '../../context/LocationContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
+import { useTheme } from '../../context/ThemeContext.jsx';
 import { useClickOutside } from '../../hooks/useClickOutside.js';
 import { getInitials } from '../../utils/format.js';
 import { cn } from '../../utils/cn.js';
@@ -39,6 +42,7 @@ export function Navbar() {
   const { totals } = useCart();
   const { city, setCity, cities } = useLocation();
   const { toast } = useToast();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -92,6 +96,19 @@ export function Navbar() {
         </nav>
 
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="grid h-10 w-10 place-items-center rounded-xl text-ink-soft transition hover:bg-black/[0.04]"
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          >
+            {theme === 'dark' ? (
+              <Sun className="h-5 w-5 text-amber-400" />
+            ) : (
+              <Moon className="h-5 w-5" />
+            )}
+          </button>
           <div className="relative hidden md:block" ref={locationRef}>
             <button
               type="button"
@@ -168,7 +185,9 @@ export function Navbar() {
                 <span className="grid h-8 w-8 place-items-center rounded-lg bg-ink text-xs font-bold text-white">
                   {getInitials(user.name)}
                 </span>
-                <span className="max-w-24 truncate text-sm font-medium">{user.name.split(' ')[0]}</span>
+                <span className="max-w-24 truncate text-sm font-medium">
+                  {user.name.split(' ')[0]}
+                </span>
                 <ChevronDown className="h-3.5 w-3.5 text-ink-muted" />
               </button>
               {profileOpen ? (
@@ -261,6 +280,19 @@ export function Navbar() {
             </div>
 
             <div className="flex-1 overflow-y-auto px-5 py-6">
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="mb-6 flex w-full items-center justify-between rounded-xl border border-black/10 px-3 py-3 text-sm font-semibold text-ink-soft"
+                aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+              >
+                <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+                {theme === 'dark' ? (
+                  <Sun className="h-5 w-5 text-amber-400" />
+                ) : (
+                  <Moon className="h-5 w-5" />
+                )}
+              </button>
               <div className="mb-6">
                 <p className="mb-2 text-xs font-bold uppercase tracking-wider text-ink-muted">
                   Delivering to
@@ -285,29 +317,33 @@ export function Navbar() {
               </div>
 
               <nav className="space-y-1" aria-label="Mobile navigation">
-                {[...navLinks, { to: '/search', label: 'Search' }, { to: '/cart', label: 'Cart' }].map(
-                  (link) => (
-                    <NavLink
-                      key={link.to}
-                      to={link.to}
-                      end={link.end}
-                      onClick={() => setMobileOpen(false)}
-                      className={({ isActive }) =>
-                        cn(
-                          'block rounded-xl px-3 py-3 text-base font-semibold transition',
-                          isActive ? 'bg-brand-50 text-brand-700' : 'text-ink-soft hover:bg-black/[0.04]'
-                        )
-                      }
-                    >
-                      {link.label}
-                      {link.to === '/cart' && totals.itemCount > 0 ? (
-                        <span className="ml-2 rounded-full bg-brand-500 px-2 py-0.5 text-[10px] text-white">
-                          {totals.itemCount}
-                        </span>
-                      ) : null}
-                    </NavLink>
-                  )
-                )}
+                {[
+                  ...navLinks,
+                  { to: '/search', label: 'Search' },
+                  { to: '/cart', label: 'Cart' },
+                ].map((link) => (
+                  <NavLink
+                    key={link.to}
+                    to={link.to}
+                    end={link.end}
+                    onClick={() => setMobileOpen(false)}
+                    className={({ isActive }) =>
+                      cn(
+                        'block rounded-xl px-3 py-3 text-base font-semibold transition',
+                        isActive
+                          ? 'bg-brand-50 text-brand-700'
+                          : 'text-ink-soft hover:bg-black/[0.04]'
+                      )
+                    }
+                  >
+                    {link.label}
+                    {link.to === '/cart' && totals.itemCount > 0 ? (
+                      <span className="ml-2 rounded-full bg-brand-500 px-2 py-0.5 text-[10px] text-white">
+                        {totals.itemCount}
+                      </span>
+                    ) : null}
+                  </NavLink>
+                ))}
               </nav>
 
               <div className="mt-7 space-y-2 border-t border-black/[0.06] pt-6">
