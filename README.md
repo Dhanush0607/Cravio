@@ -6,16 +6,6 @@
   <img src="client/public/favicon.svg" alt="CRAVIO logo" width="88" />
 </p>
 
-<p align="center">
-  <img src="client/public/images/foods/hero-food.jpg" alt="A spread of freshly prepared food from CRAVIO" width="850" />
-</p>
-
-<p align="center">
-  <img src="client/public/images/foods/biryani.jpg" alt="Biryani" width="32%" />
-  <img src="client/public/images/foods/pizza.jpg" alt="Pizza" width="32%" />
-  <img src="client/public/images/foods/burger.jpg" alt="Burger" width="32%" />
-</p>
-
 CRAVIO is a production-oriented full-stack food delivery platform built with the MERN stack. Customers
 discover restaurants, search and filter menus, build a cart, apply coupons, place orders with delivery
 addresses and payment choices, and follow each order through its lifecycle. Administrators get a
@@ -25,6 +15,7 @@ separate dashboard for restaurants, menus, orders, customers, coupons, and platf
 
 ## Table of contents
 
+- [Screenshots](#screenshots)
 - [What is included](#what-is-included)
 - [Tech stack](#tech-stack)
 - [Repository layout](#repository-layout)
@@ -39,6 +30,21 @@ separate dashboard for restaurants, menus, orders, customers, coupons, and platf
 - [Deployment](#deployment)
 - [Known limitations](#known-limitations)
 - [Documentation](#documentation)
+
+---
+
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><strong>Home page</strong><br /><img src="client/public/images/screenshots/home-page.png" alt="CRAVIO home page" width="440" /></td>
+    <td align="center"><strong>Restaurant listing</strong><br /><img src="client/public/images/screenshots/restaurants.png" alt="CRAVIO restaurant listing with search and cuisine filters" width="440" /></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>AI assistant</strong><br /><img src="client/public/images/screenshots/ai-chat.png" alt="CRAVIO AI assistant chat" width="440" /></td>
+    <td align="center"><strong>Sign in</strong><br /><img src="client/public/images/screenshots/sign-in.png" alt="CRAVIO sign-in page" width="440" /></td>
+  </tr>
+</table>
 
 ---
 
