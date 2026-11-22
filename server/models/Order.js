@@ -77,9 +77,11 @@ const orderSchema = new mongoose.Schema(
     coupon: {
       couponId: { type: mongoose.Schema.Types.ObjectId, ref: 'Coupon' },
       code: { type: String, default: '' },
-      discountType: { type: String, enum: ['percentage', 'fixed', ''] , default: '' },
+      discountType: { type: String, enum: ['percentage', 'fixed', ''], default: '' },
       discount: { type: Number, default: 0 },
     },
+    couponReservationActive: { type: Boolean, default: false },
+    paymentAttemptCount: { type: Number, min: 0, default: 0 },
     paymentMethod: { type: String, enum: ['cod', 'online'], required: true },
     paymentStatus: {
       type: String,

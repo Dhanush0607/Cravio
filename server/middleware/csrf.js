@@ -31,12 +31,6 @@ export function verifyCsrf(req, _res, next) {
 
   const cookieToken = req.cookies?.[CSRF_COOKIE];
   const headerToken = req.get('x-csrf-token');
-  const usedBearerToken = req.get('authorization')?.startsWith('Bearer ');
-
-  if (usedBearerToken) {
-    return next();
-  }
-
   if (!cookieToken || !headerToken) {
     return next(new ApiError(403, 'Missing CSRF token. Refresh the page and try again.'));
   }
