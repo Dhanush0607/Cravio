@@ -123,6 +123,20 @@ describe('authentication and authorization', () => {
     expect(blocked.status).toBe(403);
     expect(blocked.body.message).toMatch(/csrf/i);
 
+    const bearerWithCookie = await agent
+      .post('/api/users/addresses')
+      .set('Authorization', 'Bearer deliberately-irrelevant')
+      .send(address);
+    expect(bearerWithCookie.status).toBe(403);
+
+    const apiCustomer = await createUser();
+    const apiToken = await loginAs(apiCustomer);
+    const bearerOnly = await request(app)
+      .post('/api/users/addresses')
+      .set('Authorization', apiToken)
+      .send({ ...address, line1: '22 API Street' });
+    expect(bearerOnly.status).toBe(201);
+
     const csrf = await agent.get('/api/auth/csrf');
     expect(csrf.status).toBe(200);
     const token = csrf.body.data.csrfToken;

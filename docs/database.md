@@ -1,6 +1,6 @@
 # CRAVIO database design
 
-MongoDB 8 via Mongoose 8. Six collections, all defined in `server/models/`. Document shapes favour
+MongoDB 8 via Mongoose 8. Seven collections, all defined in `server/models/`. Document shapes favour
 embedding (addresses, order item snapshots, status history) because every read path is by user, order, or
 restaurant — no cross-collection joins that would benefit from population-heavy designs.
 
@@ -90,6 +90,8 @@ history.
 | `discount`         | Number     | applied coupon amount                                        |
 | `total`            | Number     | subtotal − discount + deliveryFee + platformFee              |
 | `coupon`           | Object     | `{ couponId, code, discountType, discount }`                 |
+| `couponReservationActive` | Boolean | set while this order holds a coupon reservation; atomically cleared on cancellation |
+| `paymentAttemptCount` | Number   | incremented in the transaction that creates a payment attempt to serialize against cancellation |
 | `paymentMethod`    | String     | `cod` \| `online`                                            |
 | `paymentStatus`    | String     | `pending` \| `paid` \| `failed` \| `refunded`                |
 | `orderStatus`      | String     | `pending` → `confirmed` → `preparing` → `out_for_delivery` → `delivered`, or `cancelled` |
@@ -125,8 +127,27 @@ Indexes: unique `code`, `{ isActive: 1, expiryDate: 1 }` (featured-coupon query)
 ₹299, 3 per customer), `FEAST20` (20% off cap ₹120, min ₹499, 2 per customer), `WEEKEND100` (₹100 off, min
 ₹699, 1 per customer). Tests assert these rules; change the seed and the tests together.
 
-Redemption accounting: per-user usage is derived by counting non-cancelled orders whose `coupon.couponId`
-matches, which keeps the coupon document a simple global counter and survives order deletion.
+Global reservations use a conditional `$inc` on `usageCount`. Per-customer active reservations live in the
+`couponcustomerusages` collection and are incremented in the same transaction as order creation. Existing
+non-cancelled orders are counted when a customer's usage record is first created, preserving usage limits
+across deployment. Cancellation clears the order reservation marker and decrements both counters in one
+transaction.
+
+### couponcustomerusages
+
+| Field        | Type     | Notes                                                  |
+| ------------ | -------- | ------------------------------------------------------ |
+| `coupon`     | ObjectId | required, references `coupons`                         |
+| `customer`   | ObjectId | required, references `users`                           |
+| `usageCount` | Number   | active and completed reservations, reduced on cancellation |
+
+Unique index: `{ coupon: 1, customer: 1 }`, which serializes reservation creation for a customer's coupon.
+The index is explicitly awaited before the API starts. Before deploying to an existing database, pause
+order writes and run `npm run migrate:coupon-reservations -w server` with that database's `MONGO_URI`.
+The migration rebuilds coupon counters, per-customer rows, and order reservation flags from retained
+non-cancelled coupon orders, repairs duplicate usage rows, and then awaits unique-index creation. It is
+transactional and idempotent; malformed orders referencing missing coupons must be repaired before it
+can succeed. Keep writes paused until completion.
 
 ### payments
 
@@ -141,7 +162,7 @@ One row per gateway interaction attempt.
 | `providerPaymentId`  | String | gateway payment id when captured             |
 | `amount`             | Number | ≥1, matches the order total                  |
 | `currency`           | String | default `INR`                                |
-| `status`             | String | `created` \| `paid` \| `failed` \| `refunded` |
+| `status`             | String | `created` \| `verifying` \| `paid` \| `failed` \| `refund_required` \| `refunded` |
 | `signatureVerified`  | Boolean| set only after HMAC verification succeeds    |
 | `failureReason`      | String |                                              |
 
@@ -152,16 +173,17 @@ payment document is part of the order's delivery preconditions.
 
 - **Order snapshots over references.** Menu items change; orders must not. Every order embeds the exact
   names, images, and prices the customer agreed to.
-- **Atomic counters over transactions.** Coupon reservation uses a conditional `findOneAndUpdate` with
-  `$inc`, which is race-safe on a single-document basis without needing replica-set transactions. The same
-  primitive, run in reverse, releases the reservation if the order insert fails or the order is cancelled.
+- **Transactions for multi-document invariants.** Coupon reservation and order creation, cancellation and
+  reservation release, and payment/order settlement commit together. MongoDB must run as a replica set.
+  The global coupon counter and per-customer usage increments remain conditional atomic updates inside the
+  transaction.
 - **Sparse unique idempotency index.** `idempotencyKey` is a unique sparse index, so duplicate order
   creation collapses to a replay of the first order while documents without a key (none in practice) would
   still be allowed.
 - **Soft deletes everywhere.** Restaurants, menu items, coupons, and users use `isActive`/`isAvailable`
   flags. Nothing that financial or operational history references is ever physically removed.
-- **Deriving per-user coupon usage by query.** Storing a `usedBy` array would grow unbounded; counting
-  orders is bounded by `perUserLimit` checks and uses the existing `customer` index.
+- **Separate per-customer coupon usage.** A unique coupon/customer record prevents coupon document growth
+  while allowing atomic per-user reservation limits.
 
 ## Conventions
 

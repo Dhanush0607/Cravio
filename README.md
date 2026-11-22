@@ -161,7 +161,7 @@ cravio/
 
 - Node.js 20 or newer (developed on Node 24)
 - npm 9 or newer
-- MongoDB 6+ running locally (developed against MongoDB 8.2) or a MongoDB Atlas connection string
+- MongoDB 6+ running locally as a replica set (developed against MongoDB 8.2) or a MongoDB Atlas connection string. Orders, coupon reservations, cancellation, and payment settlement use transactions.
 
 ### 1. Install dependencies
 
@@ -186,7 +186,7 @@ Minimum required values:
 ```env
 NODE_ENV=development
 PORT=5000
-MONGO_URI=mongodb://127.0.0.1:27017/cravio
+MONGO_URI=mongodb://127.0.0.1:27017/cravio?replicaSet=rs0
 JWT_SECRET=<64+ character random string>
 CLIENT_URL=http://localhost:5173
 COOKIE_SECURE=false
@@ -232,7 +232,7 @@ NODE_ENV=production npm run start -w server
 | ------------------------- | -------- | --------------------------------------------------------------------- |
 | `NODE_ENV`                | Yes      | `development`, `test`, or `production`                                |
 | `PORT`                    | No       | Defaults to `5000`                                                    |
-| `MONGO_URI`               | Yes      | Local MongoDB or Atlas connection string                              |
+| `MONGO_URI`               | Yes      | Replica-set MongoDB or Atlas connection string; transactions require a replica set |
 | `JWT_SECRET`              | Yes      | Minimum 32 characters; the app refuses to start otherwise             |
 | `JWT_EXPIRES_IN`          | No       | Defaults to `7d`                                                      |
 | `CLIENT_URL`              | Yes      | Frontend origin used for CORS and cookie scoping                      |
@@ -310,6 +310,25 @@ Run from the repository root:
 
 ## Testing and verification
 
+Backend integration tests require the test MongoDB to run as a replica set because transactional order,
+coupon, cancellation, and payment flows use MongoDB sessions. For a local single-node test replica set,
+start MongoDB with `mongod --replSet rs0 --dbpath <mongo-data-directory>`, then initialize it once with
+`mongosh "mongodb://127.0.0.1:27017/admin" --eval "rs.initiate()"`. The default test URI targets
+`cravio_test` on `rs0`; set `MONGO_URI` to another replica-set URI when needed. A standalone MongoDB server
+cannot run these integration tests.
+
+#### Existing database upgrade: coupon reservations
+
+Before deploying this version to a database that already contains orders, pause order creation and
+cancellation traffic and run `npm run migrate:coupon-reservations -w server` with that database's
+`MONGO_URI`. The migration rebuilds global and per-customer coupon usage from retained non-cancelled
+orders, sets reservation markers, repairs duplicate usage rows, and awaits creation of the unique
+coupon/customer index in one replica-set deployment step. It is safe to rerun. Do not start the new API
+version until it completes; startup checks the index and refuses to serve while legacy active coupon
+orders remain unbackfilled. Review and repair any malformed orders that lack a coupon ID or reference a
+missing coupon before rerunning. Keep order writes paused for the full migration because it reconstructs
+counters from order history.
+
 Last verified run in this repository:
 
 | Check                             | Result                                              |
@@ -350,8 +369,9 @@ npm run test
 - **Sessions** use a signed JWT stored in an HttpOnly, SameSite=Lax cookie. `tokenVersion` allows
   invalidating sessions after a password change. Bearer tokens are accepted for API clients and tests.
 - **CSRF** uses a double-submit token: a random `cravio_csrf` cookie plus an `X-CSRF-Token` header,
-  compared with `timingSafeEqual`. Requests without an auth cookie are not blocked, and Bearer-authenticated
-  requests bypass the check.
+  compared with `timingSafeEqual`. Requests without an auth cookie are not blocked, so Bearer-only API
+  clients remain supported. If an auth cookie is present, a matching CSRF header is required even when a
+  request also includes an Authorization header.
 - **Authorization** is enforced in middleware (`protect`, `requireAdmin`) and re-checked per resource; order
   reads and cancellations are scoped to the authenticated owner.
 - **Input validation** happens with Zod schemas for params, query strings, and bodies, before controllers run.
@@ -458,7 +478,7 @@ npm run test
   dependencies audit clean (`npm audit --omit=dev` → 0 vulnerabilities).
 - **Automated browser E2E is not part of the suite.** Flows were verified manually in a real browser, and
   the API is covered by integration tests; adding Playwright is a sensible next step.
-- **Payments are single-currency (INR)** and prices are formatted for the Indian market.
+- **Payments are single-currency (INR)** and prices are formatted for the Indian market. A payment captured after its order is cancelled is marked `refund_required` for support reconciliation; no refund API is integrated.
 
 ---
 

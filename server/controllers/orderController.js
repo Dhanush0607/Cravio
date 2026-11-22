@@ -5,11 +5,13 @@ import { MenuItem } from '../models/MenuItem.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { calculateQuote } from '../services/pricingService.js';
-import { releaseCoupon, reserveCoupon, validateCoupon } from '../services/couponService.js';
 import {
-  CUSTOMER_CANCELLABLE_STATUSES,
-  canTransition,
-} from '../services/orderStatusService.js';
+  releaseCoupon,
+  reserveCoupon,
+  validateCoupon,
+  withTransaction,
+} from '../services/couponService.js';
+import { CUSTOMER_CANCELLABLE_STATUSES, canTransition } from '../services/orderStatusService.js';
 
 const orderPopulate = [
   { path: 'restaurant', select: 'name slug image bannerImage deliveryTime address' },
@@ -36,14 +38,7 @@ function sendOrder(res, order, statusCode = 200, message = 'Order loaded.') {
 }
 
 export const createOrder = asyncHandler(async (req, res) => {
-  const {
-    restaurantId,
-    items,
-    addressId,
-    paymentMethod,
-    couponCode,
-    contactPhone,
-  } = req.body;
+  const { restaurantId, items, addressId, paymentMethod, couponCode, contactPhone } = req.body;
 
   const idempotencyKey =
     req.body.idempotencyKey || req.get('x-idempotency-key') || createIdempotencyKey(req.user._id);
@@ -130,66 +125,74 @@ export const createOrder = asyncHandler(async (req, res) => {
     discount,
   });
 
-  const reservedCoupon = await reserveCoupon(coupon);
   let order;
 
   try {
-    order = await Order.create({
-      orderNumber: generateOrderNumber(),
-      customer: req.user._id,
-      restaurant: restaurant._id,
-      items: orderItems,
-      deliveryAddress: {
-        label: address.label,
-        line1: address.line1,
-        line2: address.line2,
-        landmark: address.landmark,
-        city: address.city,
-        state: address.state,
-        pincode: address.pincode,
-      },
-      contact: {
-        name: req.user.name,
-        phone: contactPhone || req.user.phone,
-        email: req.user.email,
-      },
-      subtotal: quote.subtotal,
-      deliveryFee: quote.deliveryFee,
-      platformFee: quote.platformFee,
-      discount: quote.discount,
-      total: quote.total,
-      coupon: {
-        couponId: coupon?._id,
-        code: coupon?.code || '',
-        discountType: coupon?.discountType || '',
-        discount: quote.discount,
-      },
-      paymentMethod,
-      paymentStatus: 'pending',
-      orderStatus: 'pending',
-      statusHistory: [
-        {
-          status: 'pending',
-          note: 'Order placed by customer',
-          changedBy: req.user._id,
-          at: new Date(),
-        },
-      ],
-      estimatedDeliveryMinutes: Math.round(
-        (restaurant.deliveryTime.min + restaurant.deliveryTime.max) / 2
-      ),
-      idempotencyKey,
+    order = await withTransaction(async (session) => {
+      await reserveCoupon(coupon, req.user._id, session);
+      const [created] = await Order.create(
+        [
+          {
+            orderNumber: generateOrderNumber(),
+            customer: req.user._id,
+            restaurant: restaurant._id,
+            items: orderItems,
+            deliveryAddress: {
+              label: address.label,
+              line1: address.line1,
+              line2: address.line2,
+              landmark: address.landmark,
+              city: address.city,
+              state: address.state,
+              pincode: address.pincode,
+            },
+            contact: {
+              name: req.user.name,
+              phone: contactPhone || req.user.phone,
+              email: req.user.email,
+            },
+            subtotal: quote.subtotal,
+            deliveryFee: quote.deliveryFee,
+            platformFee: quote.platformFee,
+            discount: quote.discount,
+            total: quote.total,
+            coupon: {
+              couponId: coupon?._id,
+              code: coupon?.code || '',
+              discountType: coupon?.discountType || '',
+              discount: quote.discount,
+            },
+            couponReservationActive: Boolean(coupon),
+            paymentMethod,
+            paymentStatus: 'pending',
+            orderStatus: 'pending',
+            statusHistory: [
+              {
+                status: 'pending',
+                note: 'Order placed by customer',
+                changedBy: req.user._id,
+                at: new Date(),
+              },
+            ],
+            estimatedDeliveryMinutes: Math.round(
+              (restaurant.deliveryTime.min + restaurant.deliveryTime.max) / 2
+            ),
+            idempotencyKey,
+          },
+        ],
+        { session }
+      );
+      return created;
     });
   } catch (error) {
-    if (reservedCoupon) {
-      await releaseCoupon(reservedCoupon._id);
-    }
-
     if (error.code === 11000) {
       const duplicate = await Order.findOne({ idempotencyKey }).populate(orderPopulate);
       if (duplicate && duplicate.customer._id.toString() === req.user._id.toString()) {
         sendOrder(res, duplicate, 200, 'This order was already placed.');
         return;
+      }
+      if (coupon && error.keyPattern?.coupon && error.keyPattern?.customer) {
+        throw ApiError.badRequest('You have already used this coupon the maximum number of times.');
       }
       throw ApiError.conflict('This request has already been processed.');
     }
@@ -246,36 +249,33 @@ export const getOrder = asyncHandler(async (req, res) => {
 });
 
 export const cancelOrder = asyncHandler(async (req, res) => {
-  const order = await Order.findOne({
-    _id: req.params.id,
-    customer: req.user._id,
-  });
-
-  if (!order) {
-    throw ApiError.notFound('Order not found.');
-  }
-
-  if (!CUSTOMER_CANCELLABLE_STATUSES.includes(order.orderStatus)) {
-    throw ApiError.badRequest(
-      'This order can no longer be cancelled online. Please contact support for help.'
+  const order = await withTransaction(async (session) => {
+    const current = await Order.findOne({ _id: req.params.id, customer: req.user._id }).session(
+      session
     );
-  }
-
-  order.orderStatus = 'cancelled';
-  order.cancellation = {
-    reason: req.body.reason,
-    cancelledBy: req.user._id,
-    at: new Date(),
-  };
-  order.statusHistory.push({
-    status: 'cancelled',
-    note: req.body.reason,
-    changedBy: req.user._id,
-    at: new Date(),
+    if (!current) throw ApiError.notFound('Order not found.');
+    if (!CUSTOMER_CANCELLABLE_STATUSES.includes(current.orderStatus)) {
+      throw ApiError.badRequest(
+        'This order can no longer be cancelled online. Please contact support for help.'
+      );
+    }
+    if (current.paymentStatus === 'paid') {
+      throw ApiError.badRequest(
+        'This order has already been paid. Please contact support to arrange a refund.'
+      );
+    }
+    current.orderStatus = 'cancelled';
+    current.cancellation = { reason: req.body.reason, cancelledBy: req.user._id, at: new Date() };
+    current.statusHistory.push({
+      status: 'cancelled',
+      note: req.body.reason,
+      changedBy: req.user._id,
+      at: new Date(),
+    });
+    await current.save({ session });
+    await releaseCoupon(current, session);
+    return current;
   });
-
-  await order.save();
-  await releaseCoupon(order.coupon?.couponId);
   await order.populate(orderPopulate);
 
   sendOrder(res, order, 200, 'Your order has been cancelled.');
@@ -283,55 +283,64 @@ export const cancelOrder = asyncHandler(async (req, res) => {
 
 export const adminUpdateOrderStatus = asyncHandler(async (req, res) => {
   const { status, note } = req.body;
-  const order = await Order.findById(req.params.id);
+  const order = await withTransaction(async (session) => {
+    const order = await Order.findById(req.params.id).session(session);
 
-  if (!order) {
-    throw ApiError.notFound('Order not found.');
-  }
+    if (!order) {
+      throw ApiError.notFound('Order not found.');
+    }
 
-  if (order.orderStatus === status) {
-    throw ApiError.badRequest(`Order is already marked as ${status.replaceAll('_', ' ')}.`);
-  }
+    if (order.orderStatus === status) {
+      throw ApiError.badRequest(`Order is already marked as ${status.replaceAll('_', ' ')}.`);
+    }
 
-  if (!canTransition(order.orderStatus, status)) {
-    throw ApiError.badRequest(
-      `Cannot move an order from ${order.orderStatus.replaceAll('_', ' ')} to ${status.replaceAll(
-        '_',
-        ' '
-      )}.`
-    );
-  }
+    if (!canTransition(order.orderStatus, status)) {
+      throw ApiError.badRequest(
+        `Cannot move an order from ${order.orderStatus.replaceAll('_', ' ')} to ${status.replaceAll(
+          '_',
+          ' '
+        )}.`
+      );
+    }
 
-  if (
-    status === 'delivered' &&
-    order.paymentMethod === 'online' &&
-    order.paymentStatus !== 'paid'
-  ) {
-    throw ApiError.badRequest('The online payment has not been completed for this order.');
-  }
+    if (status === 'cancelled' && order.paymentStatus === 'paid') {
+      throw ApiError.badRequest(
+        'This order has already been paid. Please arrange a refund before cancelling it.'
+      );
+    }
 
-  if (status === 'cancelled') {
-    order.cancellation = {
-      reason: note || 'Cancelled by administrator',
-      cancelledBy: req.user._id,
+    if (
+      status === 'delivered' &&
+      order.paymentMethod === 'online' &&
+      order.paymentStatus !== 'paid'
+    ) {
+      throw ApiError.badRequest('The online payment has not been completed for this order.');
+    }
+
+    if (status === 'cancelled') {
+      order.cancellation = {
+        reason: note || 'Cancelled by administrator',
+        cancelledBy: req.user._id,
+        at: new Date(),
+      };
+      await releaseCoupon(order, session);
+    }
+
+    if (status === 'delivered' && order.paymentMethod === 'cod') {
+      order.paymentStatus = 'paid';
+    }
+
+    order.orderStatus = status;
+    order.statusHistory.push({
+      status,
+      note: note || `Status updated to ${status.replaceAll('_', ' ')}`,
+      changedBy: req.user._id,
       at: new Date(),
-    };
-    await releaseCoupon(order.coupon?.couponId);
-  }
+    });
 
-  if (status === 'delivered' && order.paymentMethod === 'cod') {
-    order.paymentStatus = 'paid';
-  }
-
-  order.orderStatus = status;
-  order.statusHistory.push({
-    status,
-    note: note || `Status updated to ${status.replaceAll('_', ' ')}`,
-    changedBy: req.user._id,
-    at: new Date(),
+    await order.save({ session });
+    return order;
   });
-
-  await order.save();
   await order.populate(orderPopulate);
 
   sendOrder(res, order, 200, 'Order status updated.');

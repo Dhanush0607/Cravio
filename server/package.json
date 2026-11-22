@@ -8,6 +8,7 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "seed": "node seed.js",
+    "migrate:coupon-reservations": "node scripts/migrateCouponReservations.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint ."

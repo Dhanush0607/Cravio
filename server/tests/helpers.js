@@ -6,10 +6,23 @@ import { User } from '../models/User.js';
 import { Restaurant } from '../models/Restaurant.js';
 import { MenuItem } from '../models/MenuItem.js';
 import { Coupon } from '../models/Coupon.js';
+import { CouponCustomerUsage } from '../models/CouponCustomerUsage.js';
 import { Order } from '../models/Order.js';
 import { Payment } from '../models/Payment.js';
 
-export { app, request, connectDB, disconnectDB, User, Restaurant, MenuItem, Coupon, Order, Payment };
+export {
+  app,
+  request,
+  connectDB,
+  disconnectDB,
+  User,
+  Restaurant,
+  MenuItem,
+  Coupon,
+  CouponCustomerUsage,
+  Order,
+  Payment,
+};
 
 export const DEFAULT_PASSWORD = 'Password123!';
 
@@ -32,6 +45,7 @@ export async function resetDatabase() {
     Order.deleteMany({}),
     MenuItem.deleteMany({}),
     Coupon.deleteMany({}),
+    CouponCustomerUsage.deleteMany({}),
     Restaurant.deleteMany({}),
     User.deleteMany({}),
   ]);
