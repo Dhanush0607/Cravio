@@ -2,6 +2,20 @@
 
 **Your cravings. Delivered.**
 
+<p align="center">
+  <img src="client/public/favicon.svg" alt="CRAVIO logo" width="88" />
+</p>
+
+<p align="center">
+  <img src="client/public/images/foods/hero-food.jpg" alt="A spread of freshly prepared food from CRAVIO" width="850" />
+</p>
+
+<p align="center">
+  <img src="client/public/images/foods/biryani.jpg" alt="Biryani" width="32%" />
+  <img src="client/public/images/foods/pizza.jpg" alt="Pizza" width="32%" />
+  <img src="client/public/images/foods/burger.jpg" alt="Burger" width="32%" />
+</p>
+
 CRAVIO is a production-oriented full-stack food delivery platform built with the MERN stack. Customers
 discover restaurants, search and filter menus, build a cart, apply coupons, place orders with delivery
 addresses and payment choices, and follow each order through its lifecycle. Administrators get a
